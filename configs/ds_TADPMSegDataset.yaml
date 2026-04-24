@@ -1,0 +1,59 @@
+# config/config.yaml
+defaults:
+  - transforms      # 引入变换配置
+  - vis_transforms  # 引入可视化变换配置
+  - _self_
+#------------------------参数修改---------------------------#
+# 可视化配置
+vis:
+  paths: ${paths}
+  this_classname: "${dataset.name}"
+
+# 边掩码
+gt_edge_mask:
+  dynamic_radius_nn_edge_mask:
+    _target_: ${transform_module}.DynamicRadiusNNEdgeMask
+    rmin: 1.1
+    rmax: 1.3
+    k: 1
+    disp_avg_dist: True
+    max_num_neighbors: 16
+    eliminate_tae_bg: False
+  knn_thre_edge_mask:
+    _target_: ${transform_module}.KNNThreEdgeMask
+    k: 10
+    threshold_ratio: 0.5
+
+#------------------------ 路径配置---------------------------#
+paths:
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  dataset_dir: "E:/mesh_datasets/3dTadpm"
+
+  source_obj_data_path: ${paths.dataset_dir}/Orthodontic_dental_dataset_ori/_ori
+  source_seg_json_data_path: ${paths.dataset_dir}/Orthodontic_dental_dataset_ori/_ori
+  source_landmarks_json_data_path: ${paths.dataset_dir}/3DTeethLand_landmarks_train
+  save_data_path: ${paths.dataset_dir}/Orthodontic_dental_dataset_ori
+  save_jsondata_path: ${paths.dataset_dir}/Orthodontic_dental_dataset_ori/jsondata
+  save_imgs_path: ${paths.dataset_dir}/Orthodontic_dental_dataset_ori/imgs
+  config_dir: ${paths.project_dir}/configs
+
+#------------------------- 数据集配置---------------------------#
+dataset:
+  name: "TADPMSegDataset"
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+  # train_split 拆分
+  folds:
+    fold_path: ${paths.dataset_dir}/train_test_split
+    fold_filename: "testing_full.txt"
+
+  # 排除文件配置
+  exclude_files:
+    - "K4BAII5F_upper"
+    - "87N5YSES_upper"
+    - "67PV9M7X_lower"
+    - "S0AON6PZ_lower"

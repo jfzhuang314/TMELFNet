@@ -1,0 +1,202 @@
+defaults:
+  - ds_T3DSPlusDataset
+  - _self_
+
+# 说明：
+# 1. ds_T3DSPlusDataset存储着与T3DSPlusDataset相关的配置
+# 2. ds_TADPMSegDataset存储着与TADPMSegDataset相关的配置
+# 3. 这两个配置文件主要是存储一些paths信息，以更好地区分不同数据集的路径
+
+#------------------------ 路径配置---------------------------#
+paths:
+
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  base_path: "${paths.project_dir}/model/"
+  exp_name: "exp_PTSegNet_${pretrans_name}"        # 每个项目要改
+
+  logger_path: "${paths.base_path}/pl_logs/"
+  ckpt_path: "${paths.base_path}/checkpoints/"
+  ckpt_name: "latest_checkpoint.tar"
+  results_path: "${paths.base_path}/results/"
+
+#------------------------参数修改---------------------------#
+# 可视化配置
+#vis:
+#  paths: ${paths}
+#  this_classname: "T3DSPlusSegDataset"
+
+#------------------------变换修改---------------------------#
+# transforms
+pretrans_name: fps_16000   # pretransforms配置，[fps_24000, fps_16000, qslim_10000]
+prefilter_name: default            # prefilter配置
+transforms_name: rotz_scale    # transforms配置，[comb_default, rotz_scale]
+
+# 使用导入的预处理配置
+pretrans_combs:
+  qslim_10000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      # normalizations
+      - ${normalizations.mean_scale}                   # mean_scale for tadpm
+      - ${normalizations.XoYPCA_pose_normalize}
+      # sampling
+      - ${sam_methods.qslim_10000}                     # qslim sampling
+      # generate tae, tte, centroids
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+      #  save visualizations
+#      - ${vis.qslim_10000_mesh_label_lighton_saver}    # save qslim_10000_mesh_label_lighton
+#      - ${vis.qslim_10000_mesh_edge_lighton_saver}     # save qslim_10000_mesh_edge_lighton
+#      - ${vis.qslim_10000_mesh_tte_lighton_saver}      # save qslim_10000_mesh_tte_lighton
+
+  fps_16000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${sam_methods.fps_16000}
+      - ${normalizations.XoYPCA_pose_normalize}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+        #  save visualizations
+      - ${vis.fps_16000.point_label_lighton_saver}    # save fps_16000_point_label_lighton
+      - ${vis.fps_16000.point_edge_lighton_saver}     # save fps_16000_point_edge_lighton
+      - ${vis.fps_16000.point_tte_lighton_saver}      # save fps_16000_point_tte_lighton
+trans_combs:
+  # 由于进行了姿态调整，因而当前阶段仅做旋转和缩放。
+  rotz_scale :
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms}.random_z_axis_rotate
+      - ${train_transforms}.random_scale
+
+pre_filters:
+  default: null
+
+
+#------------------------- 数据集配置---------------------------#
+dataset:
+
+  pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+  transform_obj: ${trans_combs.${transforms_name}}
+  pre_filter_obj: ${pre_filters.${prefilter_name}}
+  pretrans_name: ${pretrans_name}
+
+  # 数据集参数
+  sample_ratio: 1.0
+  rseed: 42
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+  # 一些老参数
+  ncells: 10000
+  kfold_nums: 5
+  use_fold: 1
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+  # train_split 拆分
+  folds:
+    fold_path: ${paths.dataset_dir}/Teeth3DS_train_test_split/origin
+    fold_filename: "testing_full.txt"
+
+  # 排除文件配置
+  exclude_files:
+    - "K4BAII5F_upper"
+    - "87N5YSES_upper"
+    - "67PV9M7X_lower"
+    - "S0AON6PZ_lower"
+
+
+# 训练配置
+training:
+  num_epochs: 30
+  version: "1.0"
+  lr: 0.001
+
+
+ckpt:
+  ckpt_path: ${paths.ckpt_path}
+  exp_name: ${paths.exp_name}
+  monitor_metric: "test/loss"
+  monitor_mode: "min"
+  save_top_k: 1
+  save_last: True
+
+
+logger:
+  save_dir: "${paths.logger_path}"
+  task_name: ${paths.exp_name}
+  exp_name: ${paths.exp_name}
+  add_prefix: False
+  use_tensorboard: False
+  use_csv: True
+  use_wandb: False
+  wandb_entity: None
+  flush_logs_every_n_steps: 15
+  # 实验参数配置（引用已有字段）
+  exp_args:
+    ncls: "${model.num_classes}"       # 引用 model.num_classes
+    nepochs: "${training.num_epochs}"      # 引用 training.num_epochs
+    lr: "${training.lr}"                      # 引用 training.lr
+    sr: "${dataset.sample_ratio}"
+    v: "1.0"                 # 版本号
+
+
+# 模型配置
+model:
+  name: PTSegNet
+  version: 1.0
+  num_classes: 15
+  feature_dim: 6
+  num_neighbor: 32
+  lr: ${training.lr}
+  num_epochs: ${training.num_epochs}
+  num_batches_to_print: 150
+
+  # 兼容PT
+  c: ${model.feature_dim}
+  k: ${model.num_classes}
+
+  # 网络参数
+  base_fdim: 32
+  input_feat: 6
+  stride: [ 1, 4, 4, 4, 4 ]
+  nstride: [ 2, 2, 2, 2 ]
+  nsample: [ 36, 24, 24, 24, 24 ]
+  blocks: [ 2, 3, 4, 6, 3 ]
+  block_num: 5
+  planes: [ 32, 64, 128, 256, 512 ]
+  contain_weight: False
+  crop_sample_size: 3072
+
+  config:
+    # 基础参数
+    base_fdim: 32
+    planes: ${model.planes}
+    nstride: ${model.nstride}
+    nsample: ${model.nsample}
+    stride: ${model.stride}
+    block_num: ${model.block_num}
+
+    # 对比学习参数
+    contrast:
+      stage: Ua
+      contrast: softnn
+      ftype: latent
+      sample: label
+      pos: cnt
+      dist: l2
+      temperature: 1
+      weight: w.1
+
+    # 多模态参数
+    multi:
+      stage: Ua
+      ftype: latent
+      combine: concat
+

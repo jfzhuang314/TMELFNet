@@ -1,0 +1,49 @@
+# config/config.yaml
+defaults:
+  - transforms      # 引入变换配置
+  - vis_transforms  # 引入可视化变换配置
+  - _self_
+#------------------------参数修改---------------------------#
+# 可视化配置
+vis:
+  paths: ${paths}
+  this_classname: ${dataset.name}
+
+# 边掩码
+gt_edge_mask:
+  dynamic_radius_nn_edge_mask:
+    _target_: ${transform_module}.DynamicRadiusNNEdgeMask
+    rmin: 1.6
+    rmax: 1.8
+    k: 2
+    disp_avg_dist: True
+    max_num_neighbors: 16
+    eliminate_tae_bg: False
+
+#------------------------ 路径配置---------------------------#
+paths:
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  dataset_dir: "E:/mesh_datasets/3DTeeth"
+
+  source_obj_data_path: ${paths.dataset_dir}/data
+  source_seg_json_data_path: ${paths.dataset_dir}/data
+  source_landmarks_json_data_path: ${paths.dataset_dir}/3DTeethLand_landmarks_train
+  save_data_path: ${paths.dataset_dir}/data
+  save_jsondata_path: ${paths.dataset_dir}/jsondata
+  save_imgs_path: ${paths.dataset_dir}/imgs
+  config_dir: ${paths.project_dir}/datasets/configs
+
+dataset:
+  name: "T3DSPlusSegDataset"
+  # train_split 拆分
+  folds:
+    fold_path: ${paths.dataset_dir}/Teeth3DS_train_test_split/origin
+    fold_filename: "testing_full.txt"
+
+  # 排除文件配置
+  exclude_files:
+    - "K4BAII5F_upper"
+    - "87N5YSES_upper"
+    - "67PV9M7X_lower"
+    - "S0AON6PZ_lower"
+

@@ -1,0 +1,327 @@
+defaults:
+  - ds_T3DSPlusDataset
+#  - ds_TADPMSegDataset
+  - _self_
+
+# 模块路径定义
+transform_module: "datasets.transform.t3dsPlus_transforms"         # 通用数据处理模块
+point_sampling_module: "datasets.transform.PointSamplingIndexer"   # 采样策略模块，这部分比较复杂，需要单独配置
+vis_module: "datasets.transform.VisRenderSaver"
+
+#------------------------ 项目路径配置---------------------------#
+project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+dataset_dir: "E:/mesh_datasets/3DTeeth"
+
+#------------------------ pre_transform 配置---------------------------#
+#pretrans_name: fps_16000   # pretransforms配置，[fps_24000, fps_16000, qslim_10000]
+#pretrans_name: comb_default   # pretransforms配置，[fps_24000, fps_16000, qslim_10000]
+pretrans_name: qslim_10000   # qslim_10000
+prefilter_name: default            # prefilter配置
+transforms_name: comb_default           # transforms配置，后续增加
+val_transforms_name: comb_default
+
+
+exp_name: "exp_TSeglab_${pretrans_name}"
+sample_ratio: 1.0
+
+norm_sel: mean_scale  # [zscore_scalar, yminmax,mean_scale]
+
+
+# 使用导入的预处理配置
+#pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+pretrans_combs:
+  comb_default:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.XoYPCA_pose_normalize}
+  fps_16000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.${norm_sel}}
+      - ${normalizations.XoYPCA_pose_normalize}
+#      - ${gt_edge_mask.face_inconsist_edge_mask}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+
+  fps_24000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.${norm_sel}}
+      - ${normalizations.pose_normalize}
+      - ${gt_edge_mask.face_inconsist_edge_mask}
+      - ${sam_methods.fps_24000}
+      - ${inst_cent_methods.label_scatter}
+  qslim_10000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.${norm_sel}}
+      - ${normalizations.XoYPCA_pose_normalize}
+      - ${sam_methods.qslim_10000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+
+pre_filters:
+  default: null
+
+trans_combs:
+  comb_default: null
+
+
+pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+transform_obj: ${trans_combs.${transforms_name}}
+pre_filter_obj: ${pre_filters.${prefilter_name}}
+
+#------------------------ 数据集路径配置---------------------------#
+paths:
+  source_obj_data_path: ${dataset_dir}/data
+  source_seg_json_data_path: ${dataset_dir}/data
+  source_landmarks_json_data_path: ${dataset_dir}/3DTeethLand_landmarks_train
+  save_data_path: ${dataset_dir}/data
+  save_jsondata_path: ${dataset_dir}/jsondata
+  save_imgs_path: ${dataset_dir}/imgs
+  config_dir: ${project_dir}/datasets/configs
+
+  base_path: "${paths.project_dir}/model/"
+  exp_name: ${exp_name}
+  logger_path: "${paths.base_path}/pl_logs/"
+
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  tseglab_path: "${paths.save_data_path}/${dataset.name}/tseglab_processed/${pretrans_name}"
+  tseglab_images_path: ${paths.tseglab_path}/__split__/images
+  tseglab_masks_path: ${paths.tseglab_path}/__split__/masks
+  tseglab_tmp_path: ${paths.tseglab_path}/__split__/tmp
+
+  tseglab_pred_path: "${paths.save_data_path}/${dataset.name}/tseglab_processed/${pretrans_name}"
+
+
+# 数据集配置
+dataset:
+  pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+  transform_obj: ${trans_combs.${transforms_name}}
+  val_transform_obj: ${trans_combs.${val_transforms_name}}
+  pre_filter_obj: ${pre_filters.${prefilter_name}}
+  pretrans_name: ${pretrans_name}
+
+  # 数据集参数
+  sample_ratio: ${sample_ratio}
+  rseed: 42
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+  # 一些老参数
+  ncells: 10000
+  kfold_nums: 5
+  use_fold: 1
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+  # train_split 拆分
+  folds:
+    fold_path: ${paths.dataset_dir}/Teeth3DS_train_test_split/origin
+    fold_filename: "testing_full.txt"
+
+  # 排除文件配置
+  exclude_files:
+    - "K4BAII5F_upper"
+    - "87N5YSES_upper"
+    - "67PV9M7X_lower"
+    - "S0AON6PZ_lower"
+
+# 数据集特定配置
+t3dsplus:
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: true
+
+# 折叠配置
+folds:
+  fold_path: ${project_dir}/datasets/folds
+  fold_filename: "cityu_fold_0.txt"
+
+# 排除文件配置
+exclude_files:
+  - "K4BAII5F_upper"
+  - "87N5YSES_upper"
+  - "67PV9M7X_lower"
+  - "S0AON6PZ_lower"
+
+
+
+#logger:
+#  save_dir: "${paths.logger_path}/tmc_cluster"
+##  exp_name: ${tmc_cluster}
+#  # 实验参数配置（引用已有字段）
+#  exp_args:
+#    pt: tmc_cluster.predictor_type
+#    npn: tmc_cluster.net_para_name
+#    ft: tmc_cluster.filter_type
+#    at: tmc_cluster.aggr_type
+#    scs: tmc_cluster.small_cluster_size_thre
+#    ar: tmc_cluster.alpha_ratio
+#    k: tmc_cluster.k
+#    mi: tmc_cluster.max_iter
+#    itlr: tmc_cluster.iter_thred_len_ratio
+#    fbr: ${tmc_cluster.field_bound_ratio}
+#    fsr: ${tmc_cluster.field_sigma_ratio}
+#    v: "1.0"                 # 版本号
+
+
+#--------------------------------vis------------------------------------------#
+palettes:
+  platte17:
+    - [ 1.0, 0.6, 0.6 ]      # 0
+    - [ 0.6, 0.3, 0.0 ]      # 1
+    - [ 0.6, 0.6, 0.0 ]      # 2
+    - [ 0.3, 0.6, 0.0 ]      # 3
+    - [ 0.0, 0.6, 0.6 ]      # 4
+    - [ 0.0, 0.0, 0.6 ]      # 5
+    - [ 0.6, 0.0, 0.6 ]      # 6
+    - [ 0.6, 0.0, 0.3 ]      # 7
+    - [ 0.25, 0.25, 0.25 ]   # 8
+    - [ 1.0, 0.5, 0.0 ]      # 9
+    - [ 0.6, 0.6, 0.0 ]      # 10
+    - [ 0.3, 0.6, 0.0 ]      # 11
+    - [ 0.0, 0.6, 0.6 ]      # 12
+    - [ 0.0, 0.0, 0.6 ]      # 13
+    - [ 0.6, 0.0, 0.6 ]      # 14
+    - [ 0.6, 0.0, 0.3 ]      # 15
+    - [ 0.25, 0.25, 0.25 ]   # 16
+  platte15:
+    - [ 0.3, 0.3, 0.3 ]      # 0
+    - [ 0.6, 0.3, 0.0 ]      # 1
+    - [ 0.6, 0.6, 0.0 ]      # 2
+    - [ 0.3, 0.6, 0.0 ]      # 3
+    - [ 0.0, 0.6, 0.6 ]      # 4
+    - [ 0.0, 0.0, 0.6 ]      # 5
+    - [ 0.6, 0.0, 0.6 ]      # 6
+    - [ 0.6, 0.0, 0.3 ]      # 7
+    - [ 0.5, 0.25, 0.0 ]     # 8
+    - [ 0.3, 0.3, 0.0 ]      # 9
+    - [ 0.15, 0.3, 0.0 ]     # 10
+    - [ 0.0, 0.3, 0.3 ]      # 11
+    - [ 0.0, 0.0, 0.3 ]      # 12
+    - [ 0.3, 0.0, 0.3 ]      # 13
+    - [ 0.3, 0.0, 0.15 ]     # 14
+
+vis:
+  # 基础配置模板
+  base_config: &base_config
+    _target_: ${vis_module}.VisRenderSaver
+    window_size: [800, 600]
+    window_visible: false
+    save_file: true
+    root: ${paths.save_imgs_path}
+    view_mode: "top"
+    light_on: true
+    zoom: 0.5
+
+  # Mesh 配置模板
+  mesh_config: &mesh_config
+    <<: *base_config
+    data_mode: "mesh"
+    mesh_show_wireframe: false
+    mesh_color_option: 1
+    mesh_shade_option: 0
+    palette: ${palettes.platte15}
+
+  # Point 配置模板
+  point_config: &point_config
+    <<: *base_config
+    data_mode: "point"
+    point_size: 2.0
+
+  # 具体配置项
+  vis_render_saver:
+    <<: *point_config
+    classname: "T3DSPlusSegDataset/points"
+    color_mode: "uniform_color"
+    uniform_color: [0.5, 0.5, 0.5]
+
+  point_edge_saver:
+    <<: *point_config
+    classname: "T3DSPlusSegDataset/point_edge_knn/"
+    color_mode: "edge_color"
+
+
+  instcent_render_saver:  &instcent_render_saver
+    <<: *point_config
+    _target_: ${vis_module}.InstCentRenderSaver
+    classname: "T3DSPlusSegDataset/instcent_points"
+    color_mode: "uniform_color"
+    point_size: 1.0
+    mesh_color_option: 1
+    uniform_color: [0.5, 0.5, 0.5]
+    cent_color: [0.0, 1.0, 0.0]
+    cent_radius: 0.01
+    light_on: true
+
+  mesh_uniform_saver:
+    <<: *mesh_config
+    classname: "T3DSPlusSegDataset/orginmesh_uniform/"
+    color_mode: "uniform_color"
+    uniform_color: [0.5, 0.5, 0.5]
+    mesh_color_option: 0
+
+  mesh_label_lighton_saver:
+    <<: *mesh_config
+    classname: "T3DSPlusSegDataset/orginmesh_label_lighton/"
+    color_mode: "label_color"
+
+  mesh_label_lightoff_saver:
+    <<: *mesh_config
+    classname: "T3DSPlusSegDataset/orginmesh_label_lightoff/"
+    color_mode: "label_color"
+    light_on: false
+
+  mesh_edge_lighton_saver:
+    <<: *mesh_config
+    classname: "T3DSPlusSegDataset/orginmesh_edge_lighton/"
+    color_mode: "edge_color"
+
+  qslim_10000_mesh_label_lighton_saver:
+    <<: *mesh_config
+    classname: "T3DSPlusSegDataset/qslim_10000_mesh_label_lighton/"
+    color_mode: "label_color"
+
+  qslim_10000_mesh_edge_lighton_saver:
+    <<: *mesh_config
+    classname: "T3DSPlusSegDataset/qslim_10000_mesh_edge_lighton/"
+    color_mode: "edge_color"
+
+  qslim_10000_mesh_instcent_render_saver:  &qslim_10000_instcent_render_saver
+    <<: *mesh_config
+    _target_: ${vis_module}.InstCentRenderSaver
+    classname: "T3DSPlusSegDataset/qslim_10000_instcent_mesh"
+    color_mode: "uniform_color"
+    point_size: 1.0
+    mesh_color_option: 1
+    uniform_color: [0.5, 0.5, 0.5]
+    cent_color: [0.0, 1.0, 0.0]
+    cent_radius: 0.01
+    light_on: true
+
+  ray_blend_render_saver:
+    <<: *qslim_10000_instcent_render_saver
+    _target_: ${vis_module}.RayBlendRenderSaver
+    classname: "T3DSPlusSegDataset/ray_blend_mesh"
+    cent_color: [ 0.0, 1.0, 0.0 ]
+    cent_radius: 0.01
+    proj_cent_color: [ 1.0, 0.0, 0.0 ]
+    proj_cent_radius: 0.01
+    radius_threshold: 0.03
+    window_visible: true
+
+  spee_curv_render_saver:
+    <<: *qslim_10000_instcent_render_saver
+    _target_: ${vis_module}.SpeeCurveRenderSaver
+    classname: "T3DSPlusSegDataset/spee_curv_qslim_10000_mesh"
+    cent_color: [ 0.0, 1.0, 0.0 ]
+    cent_radius: 0.01
+    window_visible: true

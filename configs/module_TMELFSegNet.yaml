@@ -1,0 +1,410 @@
+defaults:
+  - ds_T3DSPlusDataset
+#  - ds_TADPMSegDataset
+  - _self_
+
+# 模块路径定义
+transform_module: "datasets.transform.t3dsPlus_transforms"         # 通用数据处理模块
+point_sampling_module: "datasets.transform.PointSamplingIndexer"   # 采样策略模块，这部分比较复杂，需要单独配置
+cluster_module: "datasets.transform.TopoMorphCluster"         # 增加TopoMorphCluster模块
+
+# 说明：
+# 1. ds_T3DSPlusDataset存储着与T3DSPlusDataset相关的配置
+# 2. ds_TADPMSegDataset存储着与TADPMSegDataset相关的配置
+# 3. 这两个配置文件主要是存储一些paths信息，以更好地区分不同数据集的路径
+
+#------------------------ 模块配置---------------------------#
+# transforms
+prefilter_name: default               # prefilter配置
+transforms_name: tmc           # transforms配置，[comb_default, rotz_scale, rotz_scale_tmc]
+val_transforms_name: tmc     # val_transforms配置，[comb_default, tmc]
+
+pretrans_name: fps_24000_tmelf # pretransforms配置，[fps_24000, fps_16000, qslim_10000, ba_fps_16000,ba_fps_16000_09]
+module_name: "TMELFSegNetModule"  # modules名称, BADTSegNetModule  DTSegNetModule
+
+exp_name: "exp_TMELFSegNet_${pretrans_name}"
+sample_ratio: 0.3
+loss_type: "SEG_CBL" # 损失函数类型，[SEG_TAE_TTE_CBL, SEG_TAE_TTE, SEG_CBL, SEG]
+net_name: "CBLPTSegNet2048_12242" # 神经网络名称; 可选 PTSegNet
+net_para_name: "cbl_seg_2048" # 神经网络参数名称
+
+#net_name: "CBLDTSegNet2048" # 神经网络名称; 可选 PTSegNet
+#net_para_name: "dtseg_bin_1920" # 神经网络参数名称
+
+filter_type: 'tae_tte_gtte'  # bg, tae, tae_tte, tae_tte_gtte，tae_tte_ptae
+
+lr: 0.002
+num_epochs: 32
+
+#------------------------ 路径配置---------------------------#
+paths:
+
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  base_path: "${paths.project_dir}/model/"
+  exp_name: ${exp_name}
+
+  dataset_dir: "E:/mesh_datasets/3DTeeth"
+
+  logger_path: "${paths.base_path}/pl_logs/"
+  ckpt_path: "${paths.base_path}/checkpoints/"
+  ckpt_name: "latest_checkpoint.tar"
+  results_path: "${paths.base_path}/results/"
+
+  tmc_path: "${paths.save_data_path}/${dataset.name}/tmc_processed/fps_16000_tmc"
+
+
+# ------------------------模块参数---------------------------#
+tmc_cluster:
+  # 基本参数
+  ckpt_name: 'DTSegnet'   # 'DTSegnet-0.01ratio'  'DTSegnet-0.1ratio' 'DTSegnet'，'DTSegnet-0.025ratio'
+  predictor_type: 'DTSegNet'
+  net_para_name: 'seg_base'
+
+#  ckpt_name: 'BinDTSeg-0.3ratio'
+#  predictor_type: 'BinDTSegNet'
+#  net_para_name: seg_bin_1920
+  ckpt_path: '${paths.project_dir}/common/${tmc_cluster.ckpt_name}.ckpt'
+
+  mounted_segnet_outputs: True
+  mounted_mask_outputs: False
+  mounted_knn_ica_meshes: False
+  num_classes: 15
+  filter_type: 'tae_tte_gtte'  # bg, tae, tae_tte, tae_tte_gtte
+  aggr_type: 'add'  # boolean, add
+  small_cluster_size_thre: 30
+  alpha: 0.14
+  k: 3
+  max_iter: 5
+  iter_thred_len_ratio: 0.01
+  field_bound_ratio: 2
+  field_sigma_ratio: 1
+  disp_knn_ica_meshes: False
+  # 做评估时的阈值
+  thre_dist: 0.05
+
+
+#tmc_cluster:
+#  # 基本参数
+##  ckpt_name: 'DTSegnet'   # 'DTSegnet-0.01ratio'  'DTSegnet-0.1ratio' 'DTSegnet'，'DTSegnet-0.025ratio'
+##  predictor_type: 'DTSegNet'
+##  net_para_name: 'seg_base'
+#
+#  ckpt_name: 'BinDTSeg-0.3ratio'
+#  predictor_type: 'BinDTSegNet'
+#  net_para_name: seg_bin_1536
+#  ckpt_path: '${paths.project_dir}/common/${tmc_cluster.ckpt_name}.ckpt'
+#
+#  mounted_segnet_outputs: True
+#  mounted_mask_outputs: False
+#  mounted_knn_ica_meshes: False
+#  num_classes: 15
+#  filter_type: 'tae_tte_gtte'  # bg, tae, tae_tte, tae_tte_gtte
+#  aggr_type: 'add'  # boolean, add
+#  small_cluster_size_thre: 30
+#  alpha: 0.12
+#  k: 3
+#  max_iter: 5
+#  iter_thred_len_ratio: 0.01
+#  field_bound_ratio: 1.5
+#  field_sigma_ratio: 1
+#  disp_knn_ica_meshes: False
+#  # 做评估时的阈值
+#  thre_dist: 0.05
+
+
+cluster:
+  load_tmc_props:
+    _target_: ${cluster_module}.LoadTMCProposal
+    tmc_path: ${paths.tmc_path}
+    pt: ${tmc_cluster.predictor_type}
+    npn: ${tmc_cluster.net_para_name}
+    ft: ${tmc_cluster.filter_type}
+    at: ${tmc_cluster.aggr_type}
+    scs: ${tmc_cluster.small_cluster_size_thre}
+    alpha: ${tmc_cluster.alpha}
+    k: ${tmc_cluster.k}
+    mi: ${tmc_cluster.max_iter}
+    itlr: ${tmc_cluster.iter_thred_len_ratio}
+    fbr: ${tmc_cluster.field_bound_ratio}
+    fsr: ${tmc_cluster.field_sigma_ratio}
+    td: ${tmc_cluster.thre_dist}
+    cn: ${tmc_cluster.ckpt_name}
+
+#------------------------ sam_methods---------------------------#
+sam_methods:
+  ba_fps_16000_095:
+    _target_: ${transform_module}.BAFPSSample
+    num_classes: 15
+    num_fps_points: 16000
+    sam_indexer: ${sam_indexers.nn_sampler} # 嵌套配置 PointSamplingIndexer 派生类
+    predictor_type: 'DTSegNet'
+    ckpt_path: '${paths.project_dir}/common/DTSegNet.ckpt'
+    net_para_name: 'seg_base'
+    init_ratio: 0.95
+    weights_type: 'default'
+
+#------------------------变换修改---------------------------#
+# 使用导入的预处理配置
+pretrans_combs:
+  fps_16000_tmelf:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}                  # 规整化
+      - ${normalizations.XoYPCA_pose_normalize}       # 姿态归一化
+      - ${sam_methods.fps_16000}                      # 执行fps
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}   # 执行动态半径邻域
+      - ${inst_cent_methods.label_scatter}            # 执行标签聚类
+
+  bafps_16000_095_tmelf:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}                  # 规整化
+      - ${normalizations.XoYPCA_pose_normalize}       # 姿态归一化
+      - ${sam_methods.ba_fps_16000_095}                      # 执行ba_fps_16000_095
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}   # 执行动态半径邻域
+      - ${inst_cent_methods.label_scatter}            # 执行标签聚类
+
+
+  fps_32000_tmelf:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}                  # 规整化
+      - ${normalizations.XoYPCA_pose_normalize}       # 姿态归一化
+      - ${sam_methods.fps_32000}                      # 执行fps
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}   # 执行动态半径邻域
+      - ${inst_cent_methods.label_scatter}            # 执行标签聚类
+
+  fps_24000_tmelf:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}                  # 规整化
+      - ${normalizations.XoYPCA_pose_normalize}       # 姿态归一化
+      - ${sam_methods.fps_24000}                      # 执行fps
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}   # 执行动态半径邻域
+      - ${inst_cent_methods.label_scatter}            # 执行标签聚类
+
+  fps_16000_tmc_tadpm:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}                   # 规整化
+      - ${normalizations.tadpm_pose_normalize}        # 姿态归一化
+      - ${sam_methods.mounted_qslim_8192}             # 执行qslim
+      - ${sam_methods.fps_16000}                      # 执行fps
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}   # 执行动态半径邻域
+      - ${inst_cent_methods.label_scatter}            # 执行标签聚类
+#      - ${cluster.tmc}   # 执行tmc                    # 执行tmc聚类
+
+
+trans_combs:
+  # 由于进行了姿态调整，因而当前阶段仅做旋转和缩放。
+  rotz_scale :
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms}.random_z_axis_rotate
+      - ${train_transforms}.random_scale
+
+  rotz_scale_tmc:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms.random_z_axis_rotate}
+      - ${train_transforms.random_scale}
+      - ${cluster.load_tmc_props}
+
+  tmc:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${cluster.load_tmc_props}  # 加载tmc聚类结果，为data.tmc_proposal
+
+pre_filters:
+  default: null
+
+
+#数据集配置
+dataset:
+  pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+  transform_obj: ${trans_combs.${transforms_name}}
+  val_transform_obj: ${trans_combs.${val_transforms_name}}
+  pre_filter_obj: ${pre_filters.${prefilter_name}}
+  pretrans_name: ${pretrans_name}
+
+  # 数据集参数
+  sample_ratio: ${sample_ratio}
+  rseed: 42
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+  # 以下内容由ds_T3DSPlusDataset及ds_TADPMSegDataset定义
+#  name: "T3DSPlusDataset"
+#  # train_split 拆分, 这部分由引用数据集提供
+#  folds:
+#    fold_path: ${paths.dataset_dir}/Teeth3DS_train_test_split/origin
+#    fold_filename: "testing_full.txt"
+#
+#  # 排除文件配置
+#  exclude_files:
+#    - "K4BAII5F_upper"
+#    - "87N5YSES_upper"
+#    - "67PV9M7X_lower"
+#    - "S0AON6PZ_lower"
+
+
+# 模型保存配置
+# 模型保存配置
+ckpt:
+  ckpt_path: ${paths.ckpt_path}
+  exp_name: "${paths.exp_name}/${training.lr}lr_${dataset.sample_ratio}ratio_${model.loss_type}_\
+              ${dataset.name}_${model.name}_${model.net_name}_${model.net_para_name}"
+  monitor_metric: "test/loss"
+  monitor_mode: "min"
+  save_top_k: 1
+  save_last: True
+
+# 日志配置
+logger:
+  save_dir: "${paths.logger_path}"
+  task_name: ${paths.exp_name}
+  exp_name: ${paths.exp_name}
+  add_prefix: False
+  use_tensorboard: False
+  use_csv: True
+  use_wandb: False
+  wandb_entity: None
+  flush_logs_every_n_steps: 15
+  # 实验参数配置（引用已有字段）
+  exp_args:
+    ncls: "${model.num_classes}"       # 引用 model.num_classes
+    nepochs: "${training.num_epochs}"      # 引用 training.num_epochs
+    lr: "${training.lr}"                      # 引用 training.lr
+    sr: "${dataset.sample_ratio}"
+    lt: "${model.loss_type}"
+    ds: "${dataset.name}"
+    mdl: "${model.name}"
+    net: "${model.net_name}"
+    npara: "${model.net_para_name}"
+    v: "1.0"                 # 版本号
+
+  exp_tmc_args:
+    pt: ${tmc_cluster.predictor_type}
+    npn: ${tmc_cluster.net_para_name}
+    ft: ${tmc_cluster.filter_type}
+    at: ${tmc_cluster.aggr_type}
+    scs: ${tmc_cluster.small_cluster_size_thre}
+    alpha: ${tmc_cluster.alpha}
+    k: ${tmc_cluster.k}
+    mi: ${tmc_cluster.max_iter}
+    itlr: ${tmc_cluster.iter_thred_len_ratio}
+    fbr: ${tmc_cluster.field_bound_ratio}
+    fsr: ${tmc_cluster.field_sigma_ratio}
+    td: ${tmc_cluster.thre_dist}
+    cn: ${tmc_cluster.ckpt_name}
+
+prediction:
+#  model_path: ${paths.ckpt_path}/exp_DTSegNet_fps_16000/0.002lr_0.3ratio_SEG_TAE_TTE_CBL_T3DSPlusSegDataset_DTSegNetModule_DTSegNet_seg_base
+#  model_name: last.ckpt
+#  model_path: ${paths.ckpt_path}/exp_TMELFSegNet_fps_16000_tmelf/0.002lr_0.1ratio_SEG_T3DSPlusSegDataset_TMELFSegNetModule_CBLPTSegNet2048_12242_cbl_seg_2048
+
+#  model_path: ${paths.ckpt_path}/exp_TMELFSegNet_fps_16000_tmelf/0.002lr_1.0ratio_SEG_CBL_T3DSPlusSegDataset_TMELFSegNetModule_CBLPTSegNet2048_12242_cbl_seg_2048
+#  model_name: model-18-0.0548.ckpt
+
+
+  model_path: ${paths.ckpt_path}/exp_TMELFSegNet_fps_24000_tmelf/0.002lr_0.3ratio_SEG_CBL_T3DSPlusSegDataset_TMELFSegNetModule_CBLPTSegNet2048_12242_cbl_seg_2048
+  model_name: last.ckpt
+#  model_path: ${paths.ckpt_path}/exp_TMELFSegNet_fps_16000_tmelf/0.002lr_0.3ratio_SEG_CBL_T3DSPlusSegDataset_TMELFSegNetModule_CBLDTSegNet2048_dtseg_bin_1920
+#  model_name: model-20-0.0413.ckpt
+
+# 训练配置
+training:
+  num_epochs: ${num_epochs}
+  version: "1.0"
+  lr: ${lr}
+
+# 网络参数目标
+networks:
+  seg_base: &seg_base
+    in_channels: 6
+    num_classes: ${model.num_classes}
+    add_cbl: True
+    enable_pic_feat: False
+    pretrain: False
+
+  cbl_seg_2048: &cbl_seg_2048
+    k: 2
+    c: 7
+
+  dtseg_bin_1920: &seg_bin_1920
+    # 边缘图卷积块配置
+    edge_conv_blocks:
+      - {in_channels: 6, out_channels: 32, hidden_channels: 32, kernel_size: 8, edge_function: "local_global"}
+      - {in_channels: 32, out_channels: 32, hidden_channels: 32, kernel_size: 24, edge_function: "local_global"}
+      - {in_channels: 32, out_channels: 32, hidden_channels: 32, kernel_size: 56, edge_function: "local_global"}
+
+    # 隐藏层配置
+    hidden_layers:
+      local_feature_compression: {in_channels: 96, out_channels: 48}
+      global_feature_compression: {in_channels: 192, out_channels: 384}
+      cbl_feature_compression: {in_channels: 256, out_channels: 32}
+
+
+    # 膨胀卷积块配置
+    dilated_conv_blocks:
+      - {in_channels: 48, out_channels: 48, hidden_channels: 64, kernel_size: 12, edge_function: "local_global",
+         dilation_rate: 32}
+      - {in_channels: 48, out_channels: 48, hidden_channels: 64, kernel_size: 24, edge_function: "local_global",
+         dilation_rate: 256}
+      - {in_channels: 48, out_channels: 48, hidden_channels: 64, kernel_size: 48, edge_function: "local_global",
+         dilation_rate: 1920}
+
+    feature_attention: {in_channels: 384, activation: "sigmoid"}
+
+    # 残差块配置
+    residual_blocks:
+      - {in_channels: 384, hidden_channels: 128, out_channels: 256}
+      - {in_channels: 256, hidden_channels: 128, out_channels: 256}
+
+    # 输出头配置
+    output_heads:
+      semantic_segmentation: {in_channels: 256, out_channels: 2}
+      bg_segmentation: {in_channels: 256, out_channels: 2}
+      edge_segmentation: {in_channels: 256, out_channels: 2}
+      tte_segmentation: {in_channels: 256, out_channels: 2}
+
+    stn_transform: {input_channels: 6, layers: [64, 128, 512]}
+
+    num_classes: 2
+    feature_dim: 7
+    add_cbl: ${model.add_cbl}
+
+
+# 模型配置
+model:
+  name: ${module_name}
+  net_name: ${net_name}
+  net_para_name: ${net_para_name}
+  loss_type: ${loss_type} # TAE_TTE, SEG_TAE_TTE,SEG
+  add_cbl: True
+
+  #  net_name: "PTSegNet_Decoupled"
+
+  version: "1.0"
+  num_classes: 15
+  feature_dim: 6
+  lr: ${training.lr}
+  num_epochs: ${training.num_epochs}
+  num_batches_to_print: 150
+
+  # 网络参数
+  net_params: ${networks.${model.net_para_name}}
+
+  k: 8
+  lamb: 0.1
+  dropout: 0.3
+  compute_edge_binary_iou: False
+

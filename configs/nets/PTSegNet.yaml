@@ -1,0 +1,51 @@
+defaults:
+  - _self_
+
+
+model:
+  name: PTSegNet
+  version: 1.0
+  num_classes: 15
+  feature_dim: 6
+
+  c: ${model.feature_dim}
+  k: ${model.num_classes}
+
+  # 网络参数
+  base_fdim: 32
+  input_feat: 6
+  stride: [ 1, 4, 4, 4, 4 ]
+  nstride: [ 2, 2, 2, 2 ]
+  nsample: [ 36, 24, 24, 24, 24 ]
+  blocks: [ 2, 3, 4, 6, 3 ]
+  block_num: 5
+  planes: [ 32, 64, 128, 256, 512 ]
+  contain_weight: False
+  crop_sample_size: 3072
+
+  config:
+    # 基础参数
+    base_fdim: 32
+    planes: ${model.planes}
+    nstride: ${model.nstride}
+    nsample: ${model.nsample}
+    stride: ${model.stride}
+    block_num: ${model.block_num}
+
+    # 对比学习参数
+    contrast:
+      stage: Ua
+      contrast: softnn
+      ftype: latent
+      sample: label
+      pos: cnt
+      dist: l2
+      temperature: 1
+      weight: w.1
+
+    # 多模态参数
+    multi:
+      stage: Ua
+      ftype: latent
+      combine: concat
+

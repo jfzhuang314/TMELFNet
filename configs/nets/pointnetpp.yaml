@@ -1,0 +1,30 @@
+model:
+  num_classes: 15
+  num_feat: 6
+
+  # 采样配置
+  sampling:
+    radius_list: [[0.05, 0.1], [0.1, 0.2], [0.2, 0.4], [0.4, 0.8]]
+    nsample: [16, 32]  # 默认采样数
+
+  # 网络层配置
+  layers:
+    # Set Abstraction 配置
+    sa:
+      - {npoint: 1024, mlp: [[16, 16, 32], [32, 32, 64]]}
+      - {npoint: 256, mlp: [[64, 64, 128], [64, 96, 128]]}
+      - {npoint: 64, mlp: [[128, 196, 256], [128, 196, 256]]}
+      - {npoint: 16, mlp: [[256, 256, 512], [256, 384, 512]]}
+
+    # Feature Propagation 配置
+    fp:
+      - {in_channels: 1536, mlp: [256, 256]}  # fp4
+      - {in_channels: 512, mlp: [256, 256]}   # fp3
+      - {in_channels: 352, mlp: [256, 128]}   # fp2
+      - {in_channels: 128, mlp: [128, 128, 128]} # fp1
+
+  # 最终层配置
+  final:
+    conv1: {in: 128, out: 128}
+    conv2: {in: 128, out: 15}
+    dropout: 0.5

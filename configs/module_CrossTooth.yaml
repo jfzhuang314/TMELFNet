@@ -1,0 +1,337 @@
+defaults:
+  - ds_T3DSPlusDataset
+#  - ds_TADPMSegDataset
+#  - ds_T3DSDataset
+  - _self_
+
+# 说明：
+# 1. ds_T3DSPlusDataset存储着与T3DSPlusDataset相关的配置
+# 2. ds_TADPMSegDataset存储着与TADPMSegDataset相关的配置
+# 3. 这两个配置文件主要是存储一些paths信息，以更好地区分不同数据集的路径
+#------------------------ 模块配置---------------------------#
+# transforms
+pretrans_name: fps_16000   # pretransforms配置，[fps_24000, fps_16000,fps_16000_nopose, qslim_10000]
+#pretrans_name: fps_16000_tmc_tadpm   # pretransforms配置，[fps_24000, fps_16000,fps_16000_nopose, qslim_10000]
+prefilter_name: default            # prefilter配置
+transforms_name: prepross_batch    # transforms配置，[comb_default, rotz_scale]
+val_transforms_name: prepross_batch
+
+
+exp_name: "exp_CrossTooth_${pretrans_name}"
+sample_ratio: 0.5
+loss_type: "SEG_TAE_TTE_CBL" # 损失函数类型，[SEG_TAE_TTE_CBL, SEG_TAE_TTE, SEG_CBL, SEG, TAE_TTE_CBL, TAE_TTE]
+module_name: "PTSegNetModule"  # modules名称
+net_name: "PTSegNet" # 神经网络名称; 可选 PTSegNet, PTSegNet_Decoupled
+#net_para_name: "seg_12322" # 神经网络参数 seg_43222, seg_edge_32311, seg50,seg_23463，edge_54322
+net_para_name: "seg16b" # 神经网络参数 seg_43222, seg_edge_32311, seg50,seg_23463，edge_54322
+
+
+num_epochs: 100
+lr: 0.0001
+#------------------------ 路径配置---------------------------#
+paths:
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  base_path: "${paths.project_dir}/model/"
+  exp_name: ${exp_name}      # 每个项目要改
+
+  logger_path: "${paths.base_path}/pl_logs/"
+  ckpt_path: "${paths.base_path}/checkpoints/"
+  ckpt_name: "latest_checkpoint.tar"
+  results_path: "${paths.base_path}/results/"
+
+
+
+
+
+#------------------------变换修改---------------------------#
+# 采样方法配置
+
+# 使用导入的预处理配置
+pretrans_combs:
+  qslim_10000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      # normalizations
+      - ${normalizations.mean_scale}                   # mean_scale for tadpm
+      - ${sam_methods.qslim_10000}                     # qslim sampling
+      - ${normalizations.XoYPCA_pose_normalize}
+      # sampling
+      # generate tae, tte, centroids
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+      #  save visualizations
+      - ${vis.qslim_10000.mesh_label_lighton_saver}    # save qslim_10000_mesh_label_lighton
+      - ${vis.qslim_10000.mesh_edge_lighton_saver}     # save qslim_10000_mesh_edge_lighton
+      - ${vis.qslim_10000.mesh_tte_lighton_saver}      # save qslim_10000_mesh_tte_lighton
+
+  fps_16000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.XoYPCA_pose_normalize}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+        #  save visualizations
+#      - ${vis.fps_16000.point_label_lighton_saver}    # save fps_16000_point_label_lighton
+#      - ${vis.fps_16000.point_edge_lighton_saver}     # save fps_16000_point_edge_lighton
+#      - ${vis.fps_16000.point_tte_lighton_saver}      # save fps_16000_point_tte_lighton
+
+  fps_16000_tadpm:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.XoYPCA_pose_normalize}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+
+  fps_16000_nopose:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${sam_methods.fps_16000}
+#      - ${normalizations.XoYPCA_pose_normalize}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+        #  save visualizations
+      - ${vis.fps_16000_nopose.gt_label_saver}    # save fps_16000_point_label_lighton
+      - ${vis.fps_16000_nopose.gt_edge_saver}     # save fps_16000_point_edge_lighton
+      - ${vis.fps_16000_nopose.gt_tte_saver}      # save fps_16000_point_tte_lighton
+
+  fps_16000_tmc:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.XoYPCA_pose_normalize}
+      - ${sam_methods.mounted_qslim_8192}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+
+
+  fps_16000_tmc_tadpm:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.tadpm_pose_normalize}
+      - ${sam_methods.mounted_qslim_8192}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+
+trans_combs:
+  # 由于进行了姿态调整，因而当前阶段仅做旋转和缩放。
+  rotz_scale :
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms.random_z_axis_rotate}
+      - ${train_transforms.random_scale}
+
+  prepross_batch :
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms.preprocess_batch}
+      - ${sam_methods.ensure_16k}
+
+pre_filters:
+  default: null
+
+
+#数据集配置
+dataset:
+  pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+  transform_obj: ${trans_combs.${transforms_name}}
+  val_transform_obj: ${trans_combs.${val_transforms_name}}
+  pre_filter_obj: ${pre_filters.${prefilter_name}}
+  pretrans_name: ${pretrans_name}
+
+  # 数据集参数
+  sample_ratio: ${sample_ratio}
+  rseed: 42
+  batch_size: 4
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+  # 一些老参数
+  ncells: 10000
+  kfold_nums: 5
+  use_fold: 1
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+
+# 模型保存配置
+ckpt:
+  ckpt_path: ${paths.ckpt_path}
+  exp_name: "${paths.exp_name}/${training.lr}lr_${dataset.sample_ratio}ratio_${loss_type}_\
+              ${dataset.name}_${model.name}_${model.net_name}_${model.net_para_name}"
+  monitor_metric: "test/loss"
+  monitor_mode: "min"
+  save_top_k: 1
+  save_last: True
+
+# 日志配置
+logger:
+  save_dir: "${paths.logger_path}"
+  task_name: ${paths.exp_name}
+  exp_name: ${paths.exp_name}
+  add_prefix: False
+  use_tensorboard: False
+  use_csv: True
+  use_wandb: False
+  wandb_entity: None
+  flush_logs_every_n_steps: 15
+  # 实验参数配置（引用已有字段）
+  exp_args:
+    ncls: "${model.num_classes}"       # 引用 model.num_classes
+    nepochs: "${training.num_epochs}"      # 引用 training.num_epochs
+    lr: "${training.lr}"                      # 引用 training.lr
+    sr: "${dataset.sample_ratio}"
+    lt: "${loss_type}"
+    ds: "${dataset.name}"
+    mdl: "${model.name}"
+    net: "${model.net_name}"
+    npara: "${model.net_para_name}"
+    v: "1.0"                 # 版本号
+
+# 训练配置
+training:
+  num_epochs: ${num_epochs}
+  version: "1.0"
+  lr: ${lr}
+  accumulate_grad_batches: 2
+  precision: '16-mixed'
+  log_every_n_steps: 20
+  check_val_every_n_epoch: 4
+
+prediction:
+  model_name: "exp_CrossTooth_fps_16000\0.001lr_0.1ratio_SEG_TAE_TTE_T3DSPlusSegDataset_PTSegNetModule_PTSegNet_seg50\
+                model-22-0.5490.ckpt"
+  model_path: "${paths.ckpt_path}/${prediction.model_name}"
+# 网络参数目标
+networks:
+  seg_base: &seg_base
+    in_channels: 6
+    num_classes: ${model.num_classes}
+    add_cbl: True
+    enable_pic_feat: False
+    pretrain: False
+
+  seg_43222: &seg_43222
+    <<: *seg_base
+    planes: [32, 64, 128, 256, 256]
+    blocks: [4, 3, 2, 2, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 32, 32, 32]
+    share_planes: 8
+
+  seg_edge_43222: &seg_edge_43222
+    <<: *seg_base
+    planes: [32, 64, 128, 128, 256]
+    blocks: [4, 3, 2, 2, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 32, 32, 32]
+    share_planes: 4
+
+  edge_54322: &edge_54322
+    <<: *seg_base
+    planes: [32, 64, 128, 128, 256]
+    blocks: [5, 4, 3, 2, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 32, 32, 32]
+    share_planes: 4
+
+  seg50: &seg50
+    <<: *seg_base
+    planes: [32, 64, 128, 256, 512]
+    blocks: [1, 2, 3, 5, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 16, 16, 16]
+    share_planes: 8
+
+  seg38: &seg38
+    <<: *seg_base
+    planes: [32, 64, 128, 256, 512]
+    blocks: [1, 2, 2, 2, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 16, 16, 16]
+    share_planes: 8
+
+  seg13: &seg13
+    <<: *seg_base
+    planes: [64, 64, 64, 128, 192]
+    blocks: [2, 3, 4, 6, 3]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [16, 24, 24, 24, 24]
+    share_planes: 8
+
+  seg16: &seg16
+    <<: *seg_base
+    planes: [48, 64, 64, 128, 192]
+    blocks: [2, 3, 4, 6, 3]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [16, 24, 24, 24, 24]
+    share_planes: 8
+
+  seg16b: &seg16b
+    <<: *seg_base
+    planes: [48, 64, 64, 128, 256]
+    blocks: [2, 3, 4, 6, 3]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [16, 24, 24, 24, 24]
+    share_planes: 8
+
+  seg_23463: &seg_23463
+    <<: *seg_base
+    planes: [32, 64, 128, 256, 512]
+    blocks: [2, 3, 4, 6, 3]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [32, 24, 24, 24, 24]
+    share_planes: 8
+
+  seg_12352: &seg_12352
+    <<: *seg_base
+    planes: [32, 64, 128, 256, 512]
+    blocks: [1, 2, 3, 5, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 16, 16, 16]
+    share_planes: 8
+
+  seg_12322: &seg_12322
+    <<: *seg_base
+    planes: [32, 64, 128, 128, 256]
+    blocks: [1, 2, 3, 2, 2]
+    stride: [1, 4, 4, 4, 4]
+    nsample: [8, 16, 16, 16, 16]
+    share_planes: 2
+
+# 模型配置
+model:
+  name: ${module_name}
+  net_name: ${net_name}
+  net_para_name: ${net_para_name}
+  loss_type: ${loss_type} # TAE_TTE, SEG_TAE_TTE,SEG
+  add_cbl: False
+
+  #  net_name: "PTSegNet_Decoupled"
+
+  version: "1.0"
+  num_classes: 15
+  feature_dim: 6
+  lr: ${training.lr}
+  num_epochs: ${training.num_epochs}
+  num_batches_to_print: 150
+
+  # 网络参数
+  net_params: ${networks.${model.net_para_name}}
+
+  k: 8
+  lamb: 0.1
+  dropout: 0.3
+  compute_edge_binary_iou: True
+

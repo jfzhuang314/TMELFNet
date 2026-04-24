@@ -1,0 +1,99 @@
+
+#base_cfg_path: "../../../configs"
+
+defaults:
+  - _self_
+#  - ../../../configs/transforms      # 引入变换配置
+#  - ../../../configs/vis_transforms  # 引入可视化变换配置
+  - "../../../configs/datasets/T3DSPlusDataset"
+
+# 路径配置
+paths:
+#  base_path: "E:/mesh_datasets/3DTeeth"
+#  exp_path: "${paths.base_path}/experiments"
+#  logger_path: "${paths.exp_path}/pl_logs/"
+  project_path: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  base_path: "C:/Users/win10/DualMesh/pynb/paraTeeth/model/_elfnet"
+  logger_path: "${paths.base_path}/pl_logs/"
+  exp_name: "exp_ELFNet"
+  ckpt_path: "${paths.base_path}/checkpoints/"
+  ckpt_name: "latest_checkpoint.tar"
+  results_path: "${paths.base_path}/results/"
+
+
+# 训练配置文件
+dataset:
+
+  # 一些老参数
+  ncells: 10000
+  kfold_nums: 5
+  use_fold: 1
+
+  # 使用T3DSPlusDataset基础配置
+  config_path: "${paths.project_path}/configs"
+  config_name: "test_T3DSPlusDataset"
+
+  # 数据集参数
+  sample_ratio: 1.0
+  rseed: 42
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+
+
+
+# 训练配置
+training:
+  num_epochs: 30
+  version: "1.0"
+  lr: 0.001
+
+# 模型配置
+model:
+  num_classes: 2
+  num_neighbor: 32
+  lr: ${training.lr}
+  num_epochs: ${training.num_epochs}
+  num_batches_to_print: 150
+  rmin: 0.03
+  rmax: 0.03
+
+ckpt:
+  ckpt_path: ${paths.ckpt_path}
+  exp_name: ${paths.exp_name}
+  monitor_metric: "test/loss"
+  monitor_mode: "min"
+  save_top_k: 1
+  save_last: True
+
+
+logger:
+  save_dir: "${paths.logger_path}"
+  task_name: "ELFNet"
+  exp_name: ""
+  add_prefix: False
+  use_tensorboard: False
+  use_csv: True
+  use_wandb: False
+  wandb_entity: None
+  flush_logs_every_n_steps: 15
+  # 实验参数配置（引用已有字段）
+  exp_args:
+    ncls: "${model.num_classes}"       # 引用 model.num_classes
+    nepochs: "${training.num_epochs}"      # 引用 training.num_epochs
+    lr: "${training.lr}"                      # 引用 training.lr
+    sr: "${dataset.sample_ratio}"
+    rmin: "${model.rmin}"
+    rmax: "${model.rmax}"
+    v: "1.0"                 # 版本号
+
+
+
+

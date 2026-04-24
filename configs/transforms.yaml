@@ -1,0 +1,246 @@
+# configs/transforms.yaml
+defaults:
+  - _self_
+
+# 模块路径定义
+transform_module: "datasets.transform.t3dsPlus_transforms"         # 通用数据处理模块
+point_sampling_module: "datasets.transform.PointSamplingIndexer"   # 采样策略模块，这部分比较复杂，需要单独配置
+#norm_sel: yminmax
+#pretrans_comb_name: fps_16000
+
+
+#-----------------------预定义的变换：pretrans_combs--------------------------------#
+pretrans_combs:
+  comb_default:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+#      - ${normalizations.pose_normalize}
+      - ${gt_edge_mask.face_inconsist_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+  fps_16000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.pose_normalize}
+      - ${gt_edge_mask.face_inconsist_edge_mask}
+      - ${sam_methods.fps_16000}
+      - ${inst_cent_methods.label_scatter}
+  fps_24000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.pose_normalize}
+      - ${gt_edge_mask.face_inconsist_edge_mask}
+      - ${sam_methods.fps_24000}
+      - ${inst_cent_methods.label_scatter}
+  qslim_10000:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${sam_methods.qslim_10000}                     # qslim sampling
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}    # generate tae, tte
+      - ${inst_cent_methods.label_scatter}             # instance centroids
+
+#-----------------------预定义变换组合：trans_combs--------------------------------#
+
+#------------------------变换组合：trans_combs--------------------------------#
+trans_combs:
+  comb_default: null
+  rotz_scale :
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms}.random_z_axis_rotate
+      - ${train_transforms}.random_scale
+#-------------------------变换组合：trans_combs--------------------------------#
+
+# 归一化方法配置
+normalizations:
+  zscore_scalar:
+    _target_: ${transform_module}.ZScoreNormalize
+    mean: 0.0
+    std: 1.0
+
+  yminmax:
+    _target_: ${transform_module}.YMinMaxNormalize
+    y_axis_min: -36.9843781139949
+    y_axis_max: 33.15232091532151
+
+  mean_scale:
+    _target_: ${transform_module}.MeanScaleNormalize
+    scale: 60.0
+    zflip: False
+    subzmax: True
+
+  mean_scale_tadmp:
+    _target_: ${transform_module}.MeanScaleNormalize
+    scale: 60.0
+    zflip: True
+    subzmax: True
+
+  pose_normalize:
+    _target_: ${transform_module}.PoseNormalize
+
+  tadpm_pose_normalize:
+    _target_: ${transform_module}.TadpmPoseNormalize
+
+  XoYPCA_pose_normalize:
+    _target_: ${transform_module}.XoYPCAPoseNormalize
+
+
+# 当前使用的采样策略
+sam_indexers:
+  nn_sampler:
+    _target_: ${point_sampling_module}.NNPointSamplingIndexer
+
+  knn_sampler:
+    _target_: ${point_sampling_module}.KNNPointSamplingIndexer
+    k: 3
+
+# 采样方法配置
+sam_methods:
+
+  fps_48000:
+    _target_: ${transform_module}.FPSSample
+    num_classes: 15
+    num_fps_points: 48000
+    sam_indexer: # 嵌套配置 PointSamplingIndexer 派生类
+      ${sam_indexers.nn_sampler}
+
+  fps_32000:
+    _target_: ${transform_module}.FPSSample
+    num_classes: 15
+    num_fps_points: 32000
+    sam_indexer: # 嵌套配置 PointSamplingIndexer 派生类
+      ${sam_indexers.nn_sampler}
+
+  fps_24000:
+    _target_: ${transform_module}.FPSSample
+    num_classes: 15
+    num_fps_points: 24000
+    sam_indexer:        # 嵌套配置 PointSamplingIndexer 派生类
+      ${sam_indexers.nn_sampler}
+
+  fps_16000:
+    _target_: ${transform_module}.FPSSample
+    num_classes: 15
+    num_fps_points: 16000
+    sam_indexer: ${sam_indexers.nn_sampler} # 嵌套配置 PointSamplingIndexer 派生类
+
+
+  qslim_10000:
+    _target_: ${transform_module}.QSlimSample
+    num_classes: 15
+    tar_vert_num: 10000
+    sam_indexer:        # 嵌套配置 PointSamplingIndexer 派生类
+      ${sam_indexers.nn_sampler}
+
+  qslim_8192:
+    _target_: ${transform_module}.QSlimSample
+    num_classes: 15
+    tar_vert_num: 8192
+    sam_indexer:        # 嵌套配置 PointSamplingIndexer 派生类
+      ${sam_indexers.nn_sampler}
+
+  mounted_qslim_8192:
+    _target_: ${transform_module}.MountedQSlimSample
+    num_classes: 15
+    tar_vert_num: 8192
+    sam_indexer: # 嵌套配置 PointSamplingIndexer 派生类
+      ${sam_indexers.nn_sampler}
+
+  ensure_16k:
+    _target_: ${transform_module}.EnsureNumPoints
+    num_points: 16000
+
+
+# 实例质心计算方法配置
+inst_cent_methods:
+  label_scatter:
+    _target_: ${transform_module}.InstanceCentroids
+
+# 预测质心方法
+inst_cluster_methods:
+
+
+
+# 生成gt_edge_mask
+gt_edge_mask:
+  face_inconsist_edge_mask:
+    _target_: ${transform_module}.FaceInconsistEdgeMask
+  dynamic_radius_nn_edge_mask:
+    _target_: ${transform_module}.DynamicRadiusNNEdgeMask
+    rmin: 1.5
+    rmax: 1.8
+    k: 2
+    disp_avg_dist: True
+    max_num_neighbors: 16
+  knn_thre_edge_mask:
+    _target_: ${transform_module}.KNNThreEdgeMask
+    k: 8
+    threshold_ratio: 0.5
+
+precompute_edge_index:
+  radii_edge_index:
+    _target_: ${transform_module}.RadiiEdgeIndex
+    radii: [0.03, 0.07, 0.15, 0.4]
+    max_num_neighbors: 16
+
+train_transforms:
+  random_z_axis_rotate:
+    _target_: ${transform_module}.RandomZAxisRotate
+    max_degrees: 10.0
+    rng: null
+  random_scale:
+    _target_: ${transform_module}.RandomScale
+    low: 0.97
+    high: 1.03
+    rng: null
+  preprocess_batch:
+    _target_: ${transform_module}.PreprocessBatch
+  rel_knn_dist:
+    _target_: ${transform_module}.RelKnnDistFeature
+    k: 8
+    eps: 1e-6
+
+
+
+#--------------------------------vis------------------------------------------#
+
+
+
+
+## 预处理组合映射
+#pretrans_combs:
+#  fps_16000:
+#    _target_: torch_geometric.transforms.Compose
+#    transforms:
+#      - ${normalizations.${norm_sel}}
+#      - _target_: ${transform_module}.PoseNormalize
+#      - ${sam_methods.fps_16000}
+#      - _target_: ${transform_module}.InstanceCentroids
+#
+#  fps_24000:
+#    _target_: torch_geometric.transforms.Compose
+#    transforms:
+#      - ${normalizations.${norm_sel}}
+#      - _target_: ${transform_module}.PoseNormalize
+#      - ${sam_methods.fps_24000}
+#      - _target_: ${transform_module}.InstanceCentroids
+#
+#  qslim_10000:
+#    _target_: torch_geometric.transforms.Compose
+#    transforms:
+#      - ${normalizations.${norm_sel}}
+#      - _target_: ${transform_module}.PoseNormalize
+#      - ${sam_methods.qslim_10000}
+#      - _target_: ${transform_module}.InstanceCentroids
+#
+#  minimal:
+#    _target_: torch_geometric.transforms.Compose
+#    transforms:
+#      - ${normalizations.zscore_scalar}
+#      - _target_: ${transform_module}.InstanceCentroids
+#
+## 根据名称选择预处理配置
+#pre_transform: ${pretrans_combs.${pretrans_name}}

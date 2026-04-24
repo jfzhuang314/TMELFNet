@@ -1,0 +1,247 @@
+defaults:
+#  - ds_T3DSPlusDataset
+  - ds_TADPMSegDataset
+  - _self_
+
+# 模块路径定义
+transform_module: "datasets.transform.t3dsPlus_transforms"         # 通用数据处理模块
+point_sampling_module: "datasets.transform.PointSamplingIndexer"   # 采样策略模块，这部分比较复杂，需要单独配置
+cluster_module: "datasets.transform.TopoMorphCluster"              # 聚类模块，这部分比较复杂，需要单独配置
+
+
+# 说明：
+# 1. ds_T3DSPlusDataset存储着与T3DSPlusDataset相关的配置
+# 2. ds_TADPMSegDataset存储着与TADPMSegDataset相关的配置
+# 3. 这两个配置文件主要是存储一些paths信息，以更好地区分不同数据集的路径
+
+#------------------------ 模块配置---------------------------#
+# transforms
+prefilter_name: default            # prefilter配置
+transforms_name: comb_default    # transforms配置，[comb_default, rotz_scale, rotz_scale_tmc]
+val_transforms_name: comb_default           # val_transforms配置，[comb_default, tmc]
+
+pretrans_name: fps_16000_tmc_tadpm  # fps_16000_tmc_tadpm  fps_16000_tmc
+exp_name: "exp_TMC_${pretrans_name}"
+sample_ratio: 0.1
+
+#------------------------ 路径配置---------------------------#
+paths:
+
+  project_dir: "C:/Users/win10/DualMesh/pynb/paraTeeth"
+  base_path: "${paths.project_dir}/model/"
+  exp_name: ${exp_name}
+
+#  dataset_dir: "E:/mesh_datasets/3DTeeth"
+
+  logger_path: "${paths.base_path}/pl_logs/"
+  results_path: "${paths.base_path}/results/"
+  images_path: "${paths.dataset_dir}/imgs/${dataset.name}/${pretrans_name}"
+  tmc_path: "${paths.save_data_path}/${dataset.name}/tmc_processed/${pretrans_name}"
+
+#------------------------预定义变换---------------------------#
+
+tmc_cluster:
+  # 基本参数
+  ckpt_name: 'DTSegnet_TADPM'   # 'DTSegnet-0.01ratio'  'DTSegnet-0.1ratio' 'DTSegnet'，'DTSegnet-0.025ratio'
+
+  num_classes: 15
+  predictor_type: 'DTSegNet'
+#  ckpt_path: '${paths.project_dir}/common/DTSegNet.ckpt'
+  ckpt_path: '${paths.project_dir}/common/${tmc_cluster.ckpt_name}.ckpt'
+  net_para_name: 'seg_base'
+  mounted_segnet_outputs: True
+  mounted_mask_outputs: False
+  mounted_knn_ica_meshes: False
+  filter_type: 'tae_tte_gtte'  # bg, tae, tae_tte, tae_tte_gtte
+  aggr_type: 'add'  # boolean, add
+  small_cluster_size_thre: 30
+  alpha: 0.12
+  k: 3
+  max_iter: 5
+  iter_thred_len_ratio: 0.01
+  field_bound_ratio: 1
+  field_sigma_ratio: 1
+  disp_knn_ica_meshes: False
+  # 做评估时的阈值
+  thre_dist: 0.05
+
+#tmc_cluster:
+#  # 基本参数
+#  ckpt_name: 'PTSeg50'   # 'DTSegnet-0.01ratio'  'DTSegnet-0.1ratio' 'DTSegnet'，'DTSegnet-0.025ratio'
+#
+#  num_classes: 15
+#  predictor_type: 'PTSegNet'
+##  ckpt_path: '${paths.project_dir}/common/DTSegNet.ckpt'
+#  ckpt_path: '${paths.project_dir}/common/${tmc_cluster.ckpt_name}.ckpt'
+#  net_para_name: 'seg50'
+#  mounted_segnet_outputs: True
+#  mounted_mask_outputs: False
+#  mounted_knn_ica_meshes: False
+#  filter_type: 'tae_tte_gtte'  # bg, tae, tae_tte, tae_tte_gtte
+#  aggr_type: 'add'  # boolean, add
+#  small_cluster_size_thre: 30
+#  alpha: 0.14
+#  k: 3
+#  max_iter: 5
+#  iter_thred_len_ratio: 0.01
+#  field_bound_ratio: 2
+#  field_sigma_ratio: 1
+#  disp_knn_ica_meshes: False
+#  # 做评估时的阈值
+#  thre_dist: 0.05
+
+
+cluster:
+  topo_moprh_cluster:
+    _target_: ${cluster_module}.TopoMorphCluster
+    num_classes: ${tmc_cluster.num_classes}                          # 类别数
+    predictor_type: ${tmc_cluster.predictor_type}                    # 预测器类型
+    ckpt_path: ${tmc_cluster.ckpt_path}                              # 模型检查点路径
+    net_para_name: ${tmc_cluster.net_para_name}                      # 网络参数名称
+    mounted_segnet_outputs: ${tmc_cluster.mounted_segnet_outputs}    # 是否挂载SegNet输出，理由包含了丰富的信息
+    mounted_knn_ica_meshes: ${tmc_cluster.mounted_knn_ica_meshes}          # 是否可视化KNN-ICA结果
+    mounted_mask_outputs: ${tmc_cluster.mounted_mask_outputs}          # 是否挂载mask输出
+    filter_type: ${tmc_cluster.filter_type}                          # 过滤类型，包含bg、tae、tae_tte、tae_tte_gtte、tae_tte_ptte、tae_tte_ptae
+    aggr_type: ${tmc_cluster.aggr_type}                              # 聚合类型。默认为布尔聚合;包含boolean, add两种方式
+    small_cluster_size_thre: ${tmc_cluster.small_cluster_size_thre}  # 过滤小聚类大小的阈值
+    alpha: ${tmc_cluster.alpha}                                      # alpha边长阈值
+    k: ${tmc_cluster.k}                                              # KNN-ICA迭代邻域数
+    max_iter: ${tmc_cluster.max_iter}                                # KNN-ICA最大迭代次数
+    iter_thred_len_ratio: ${tmc_cluster.iter_thred_len_ratio}        # KNN-ICA迭代阈值长度比率
+    field_bound_ratio: ${tmc_cluster.field_bound_ratio}              # UL线段带宽比率
+    field_sigma_ratio: ${tmc_cluster.field_sigma_ratio}              # 距离带宽比率
+
+  load_tmc_props:
+    _target_: ${cluster_module}.LoadTMCProposal
+    tmc_path: ${paths.tmc_path}
+    pt: ${tmc_cluster.predictor_type}
+    npn: ${tmc_cluster.net_para_name}
+    ft: ${tmc_cluster.filter_type}
+    at: ${tmc_cluster.aggr_type}
+    scs: ${tmc_cluster.small_cluster_size_thre}
+    alpha: ${tmc_cluster.alpha}
+    k: ${tmc_cluster.k}
+    mi: ${tmc_cluster.max_iter}
+    itlr: ${tmc_cluster.iter_thred_len_ratio}
+    fbr: ${tmc_cluster.field_bound_ratio}
+    fsr: ${tmc_cluster.field_sigma_ratio}
+    td: ${tmc_cluster.thre_dist}
+    cn: ${tmc_cluster.ckpt_name}
+
+#------------------------变换修改---------------------------#
+# 使用导入的预处理配置
+pretrans_combs:
+  fps_16000_tmc:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.XoYPCA_pose_normalize}
+      - ${sam_methods.mounted_qslim_8192}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+#      - ${cluster.topo_moprh_cluster}                 # 执行tmc聚类
+
+  fps_16000_tmc_tadpm:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${normalizations.mean_scale}
+      - ${normalizations.tadpm_pose_normalize}
+      - ${sam_methods.mounted_qslim_8192}
+      - ${sam_methods.fps_16000}
+      - ${gt_edge_mask.dynamic_radius_nn_edge_mask}
+      - ${inst_cent_methods.label_scatter}
+
+trans_combs:
+  # 由于进行了姿态调整，因而当前阶段仅做旋转和缩放。
+  rotz_scale :
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms}.random_z_axis_rotate
+      - ${train_transforms}.random_scale
+
+  rotz_scale_tmc:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - ${train_transforms.random_z_axis_rotate}
+      - ${train_transforms.random_scale}
+      - ${cluster.topo_moprh_cluster}
+
+pre_filters:
+  default: null
+
+pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+transform_obj: ${trans_combs.${transforms_name}}
+pre_filter_obj: ${pre_filters.${prefilter_name}}
+
+
+#数据集配置
+dataset:
+  pre_transform_obj: ${pretrans_combs.${pretrans_name}}
+  transform_obj: ${trans_combs.${transforms_name}}
+  val_transform_obj: ${trans_combs.${val_transforms_name}}
+  pre_filter_obj: ${pre_filters.${prefilter_name}}
+  pretrans_name: ${pretrans_name}
+
+  # 数据集参数
+  sample_ratio: ${sample_ratio}
+  rseed: 42
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+
+  # 一些老参数
+  ncells: 10000
+  kfold_nums: 5
+  use_fold: 1
+
+  # dataset相关的参数
+  is_filter_small_instance: true
+  filter_small_instance_size: 30
+  recompute: False
+
+#  # train_split 拆分
+#  folds:
+#    fold_path: ${paths.dataset_dir}/Teeth3DS_train_test_split/origin
+#    fold_filename: "testing_full.txt"
+#
+#  # 排除文件配置
+#  exclude_files:
+#    - "K4BAII5F_upper"
+#    - "87N5YSES_upper"
+#    - "67PV9M7X_lower"
+#    - "S0AON6PZ_lower"
+
+
+
+
+# 日志配置
+logger:
+  save_dir: "${paths.logger_path}"
+  task_name: ${paths.exp_name}
+  exp_name: ${exp_name}
+  add_prefix: False
+  use_tensorboard: False
+  use_csv: True
+  use_wandb: False
+  wandb_entity: None
+  flush_logs_every_n_steps: 15
+  # 实验参数配置（引用已有字段）
+  exp_args:
+    pt: ${tmc_cluster.predictor_type}
+    npn: ${tmc_cluster.net_para_name}
+    ft: ${tmc_cluster.filter_type}
+    at: ${tmc_cluster.aggr_type}
+    scs: ${tmc_cluster.small_cluster_size_thre}
+    alpha: ${tmc_cluster.alpha}
+    k: ${tmc_cluster.k}
+    mi: ${tmc_cluster.max_iter}
+    itlr: ${tmc_cluster.iter_thred_len_ratio}
+    fbr: ${tmc_cluster.field_bound_ratio}
+    fsr: ${tmc_cluster.field_sigma_ratio}
+    td: ${tmc_cluster.thre_dist}
+    cn: ${tmc_cluster.ckpt_name}
+
+
+

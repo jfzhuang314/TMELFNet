@@ -1,0 +1,8 @@
+model/checkpoints
+model/results
+model/bak
+model/tb_logs
+model/_crop_patch/cache
+lightning_logs/
+model/pl_logs/
+matlab/results

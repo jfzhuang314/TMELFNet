@@ -1,0 +1,347 @@
+
+defaults:
+  - _self_
+
+# 模块路径定义
+vis_module: "datasets.transform.VisRenderSaver"
+
+#--------------------------------vis------------------------------------------#
+vis:
+  paths: ${paths}
+  this_classname: "TADPMSegDataset"
+
+  # 基础配置模板
+  base_config: &base_config
+    _target_: ${vis_module}.VisRenderSaver
+    window_size: [800, 600]
+    window_visible: false
+    save_file: true
+    root: ${vis.paths.save_imgs_path}
+    view_mode: "top"
+    light_on: true
+    zoom: 0.5
+
+  # Mesh 配置模板
+  mesh_config: &mesh_config
+    <<: *base_config
+    data_mode: "mesh"
+    mesh_show_wireframe: false
+    mesh_color_option: 1
+    mesh_shade_option: 0
+    palette: ${palettes.platte15}
+
+  # Point 配置模板
+  point_config: &point_config
+    <<: *base_config
+    data_mode: "point"
+    point_size: 2.0
+    palette: ${palettes.platte15}
+
+  # 具体配置项
+  vis_render_saver:
+    <<: *point_config
+    classname: "${vis.this_classname}/points"
+    color_mode: "uniform_color"
+    uniform_color: [0.5, 0.5, 0.5]
+
+  point_edge_saver:
+    <<: *point_config
+    classname: "${vis.this_classname}/point_edge_knn/"
+    color_mode: "edge_color"
+
+
+  instcent_render_saver:  &instcent_render_saver
+    <<: *point_config
+    _target_: ${vis_module}.InstCentRenderSaver
+    classname: "${vis.this_classname}/instcent_points"
+    color_mode: "uniform_color"
+    point_size: 1.0
+    mesh_color_option: 1
+    uniform_color: [0.5, 0.5, 0.5]
+    cent_color: [0.0, 1.0, 0.0]
+    cent_radius: 0.01
+    light_on: true
+
+  mesh_uniform_saver:
+    <<: *mesh_config
+    classname: "${vis.this_classname}/orginmesh_uniform/"
+    color_mode: "uniform_color"
+    uniform_color: [0.5, 0.5, 0.5]
+    mesh_color_option: 0
+
+  mesh_label_lighton_saver:
+    <<: *mesh_config
+    classname: "${vis.this_classname}/orginmesh_label_lighton/"
+    color_mode: "label_color"
+
+  mesh_label_lightoff_saver:
+    <<: *mesh_config
+    classname: "${vis.this_classname}/orginmesh_label_lightoff/"
+    color_mode: "label_color"
+    light_on: false
+
+  mesh_edge_lighton_saver:
+    <<: *mesh_config
+    classname: "${vis.this_classname}/orginmesh_edge_lighton/"
+    color_mode: "edge_color"
+
+  qslim_10000:
+    mesh_label_lighton_saver:
+      <<: *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_mesh_label_lighton/"
+      color_mode: "label_color"
+  #    show_coordinate_frame: true
+  #    window_visible: true
+
+    mesh_edge_lighton_saver:
+      <<: *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_mesh_edge_lighton/"
+      color_mode: "edge_color"
+
+    mesh_tte_lighton_saver:
+      <<: *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_mesh_tte_lighton/"
+      color_mode: "tte_color"
+
+    pred_label_saver:
+      <<:  *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_pred_label/"
+      color_mode: "label_color"
+
+    pred_bg_saver:
+      <<:  *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_pred_bg/"
+      color_mode: "label_color"
+
+    pred_edge_saver:
+      <<:  *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_pred_edge/"
+      color_mode: "edge_color"
+
+    pred_tte_saver:
+      <<:  *mesh_config
+      classname: "${vis.this_classname}/qslim_10000_pred_tte/"
+      color_mode: "tte_color"
+
+
+  qslim_10000_mesh_instcent_render_saver:  &qslim_10000_instcent_render_saver
+    <<: *mesh_config
+    _target_: ${vis_module}.InstCentRenderSaver
+    classname: "${vis.this_classname}/qslim_10000_instcent_mesh"
+    color_mode: "uniform_color"
+    point_size: 1.0
+    mesh_color_option: 1
+    uniform_color: [0.5, 0.5, 0.5]
+    cent_color: [0.0, 1.0, 0.0]
+    cent_radius: 0.01
+    light_on: true
+
+  fps_16000:
+    point_label_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_point_label_lighton/"
+      color_mode: "label_color"
+
+    point_edge_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_point_edge_lighton/"
+      color_mode: "edge_color"
+
+    point_tte_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_point_tte_lighton/"
+      color_mode: "tte_color"
+
+    pred_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_pred_label/"
+      color_mode: "label_color"
+
+    pred_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_pred_edge/"
+      color_mode: "edge_color"
+
+    pred_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_pred_tte/"
+      color_mode: "tte_color"
+
+  fps_16000_tmc_tadpm:
+    point_label_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_tmc_tadpm_label/"
+      color_mode: "label_color"
+
+    point_edge_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_tmc_tadpm_edge/"
+      color_mode: "edge_color"
+
+    point_tte_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_tmc_tadpm_tte/"
+      color_mode: "tte_color"
+
+    pred_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_tmc_tadpm_pred_label/"
+      color_mode: "label_color"
+
+    pred_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_tmc_tadpm_pred_edge/"
+      color_mode: "edge_color"
+
+    pred_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_tmc_tadpm_pred_tte/"
+      color_mode: "tte_color"
+
+  fps_16000_nopose:
+    gt_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_nopose_gt_label/"
+      color_mode: "label_color"
+
+    gt_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_nopose_gt_edge/"
+      color_mode: "edge_color"
+
+    gt_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_nopose_gt_tte/"
+      color_mode: "tte_color"
+
+    pred_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_nopose_pred_label/"
+      color_mode: "label_color"
+
+    pred_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_nopose_pred_edge/"
+      color_mode: "edge_color"
+
+    pred_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_nopose_pred_tte/"
+      color_mode: "tte_color"
+
+  fps_16000_yminmax:
+    gt_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_yminmax_gt_label/"
+      color_mode: "label_color"
+
+    gt_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_yminmax_gt_edge/"
+      color_mode: "edge_color"
+
+    gt_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_yminmax_gt_tte/"
+      color_mode: "tte_color"
+
+    pred_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_yminmax_pred_label/"
+      color_mode: "label_color"
+
+    pred_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_yminmax_pred_edge/"
+      color_mode: "edge_color"
+
+    pred_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/fps_16000_yminma_pred_tte/"
+      color_mode: "tte_color"
+
+  ba_fps_16000:
+    point_label_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/ba_fps_16000_point_label_lighton/"
+      color_mode: "label_color"
+
+    point_edge_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/ba_fps_16000_point_edge_lighton/"
+      color_mode: "edge_color"
+
+    point_tte_lighton_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/ba_fps_16000_point_tte_lighton/"
+      color_mode: "tte_color"
+
+    pred_label_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/ba_fps_16000_pred_label/"
+      color_mode: "label_color"
+
+    pred_edge_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/ba_fps_16000_pred_edge/"
+      color_mode: "edge_color"
+
+    pred_tte_saver:
+      <<: *point_config
+      classname: "${vis.this_classname}/ba_fps_16000_pred_tte/"
+      color_mode: "tte_color"
+
+  ray_blend_render_saver:
+    <<: *qslim_10000_instcent_render_saver
+    _target_: ${vis_module}.RayBlendRenderSaver
+    classname: "${vis.this_classname}/ray_blend_mesh"
+    cent_color: [ 0.0, 1.0, 0.0 ]
+    cent_radius: 0.01
+    proj_cent_color: [ 1.0, 0.0, 0.0 ]
+    proj_cent_radius: 0.01
+    radius_threshold: 0.03
+    window_visible: true
+
+  spee_curv_render_saver:
+    <<: *qslim_10000_instcent_render_saver
+    _target_: ${vis_module}.SpeeCurveRenderSaver
+    classname: "${vis.this_classname}/spee_curv_qslim_10000_mesh"
+    cent_color: [ 0.0, 1.0, 0.0 ]
+    cent_radius: 0.01
+    window_visible: true
+
+palettes:
+  platte17:
+    - [ 1.0, 0.6, 0.6 ]      # 0
+    - [ 0.6, 0.3, 0.0 ]      # 1
+    - [ 0.6, 0.6, 0.0 ]      # 2
+    - [ 0.3, 0.6, 0.0 ]      # 3
+    - [ 0.0, 0.6, 0.6 ]      # 4
+    - [ 0.0, 0.0, 0.6 ]      # 5
+    - [ 0.6, 0.0, 0.6 ]      # 6
+    - [ 0.6, 0.0, 0.3 ]      # 7
+    - [ 0.25, 0.25, 0.25 ]   # 8
+    - [ 1.0, 0.5, 0.0 ]      # 9
+    - [ 0.6, 0.6, 0.0 ]      # 10
+    - [ 0.3, 0.6, 0.0 ]      # 11
+    - [ 0.0, 0.6, 0.6 ]      # 12
+    - [ 0.0, 0.0, 0.6 ]      # 13
+    - [ 0.6, 0.0, 0.6 ]      # 14
+    - [ 0.6, 0.0, 0.3 ]      # 15
+    - [ 0.25, 0.25, 0.25 ]   # 16
+  platte15:
+    - [ 0.3, 0.3, 0.3 ]      # 0
+    - [ 0.6, 0.3, 0.0 ]      # 1
+    - [ 0.6, 0.6, 0.0 ]      # 2
+    - [ 0.3, 0.6, 0.0 ]      # 3
+    - [ 0.0, 0.6, 0.6 ]      # 4
+    - [ 0.0, 0.0, 0.6 ]      # 5
+    - [ 0.6, 0.0, 0.6 ]      # 6
+    - [ 0.6, 0.0, 0.3 ]      # 7
+    - [ 0.5, 0.25, 0.0 ]     # 8
+    - [ 0.3, 0.3, 0.0 ]      # 9
+    - [ 0.15, 0.3, 0.0 ]     # 10
+    - [ 0.0, 0.3, 0.3 ]      # 11
+    - [ 0.0, 0.0, 0.3 ]      # 12
+    - [ 0.3, 0.0, 0.3 ]      # 13
+    - [ 0.3, 0.0, 0.15 ]     # 14

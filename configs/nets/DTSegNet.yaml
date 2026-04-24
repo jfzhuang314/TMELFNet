@@ -1,0 +1,43 @@
+# Dilated Tooth Segmentation Network Configuration
+model:
+  name: "DTSegNet"
+  version: "1.0"
+  num_classes: 15
+  feature_dim: 6
+  dilation_rates: [200, 900, 2700]
+
+
+  # 边缘图卷积块配置
+  edge_conv_blocks:
+    - {block_id: 1, in_channels: 6, out_channels: 24, hidden_channels: 24, kernel_size: 32, edge_function: "local_global"}
+    - {block_id: 2, in_channels: 24, out_channels: 24, hidden_channels: 24, kernel_size: 32,edge_function: "local_global"}
+    - {block_id: 3, in_channels: 24, out_channels: 24, hidden_channels: 24, kernel_size: 32,edge_function: "local_global"}
+
+  # 膨胀卷积块配置
+  dilated_conv_blocks:
+    - {block_id: 1, in_channels: 60, out_channels: 60, hidden_channels: 60, kernel_size: 32, dilation_rate: 200, edge_function: "local_global"}
+    - {block_id: 2, in_channels: 60, out_channels: 60, hidden_channels: 60, kernel_size: 32, dilation_rate: 900, edge_function: "local_global"}
+    - {block_id: 3, in_channels: 60, out_channels: 60, hidden_channels: 60, kernel_size: 32, dilation_rate: 2700, edge_function: "local_global"}
+
+  # 隐藏层配置
+  hidden_layers:
+    local_feature_compression: {in_channels: 72, out_channels: 60}
+    global_feature_compression: {in_channels: 240, out_channels: 1024}
+    cbl_feature_compression: {in_channels: 256, out_channels: 32}
+
+  # 残差块配置
+  residual_blocks:
+    - {block_id: 1, in_channels: 1024, hidden_channels: 512, out_channels: 512}
+    - {block_id: 2, in_channels: 512, hidden_channels: 256, out_channels: 256}
+
+  # 输出头配置
+  output_heads:
+    semantic_segmentation: {in_channels: 256, out_channels: 15}
+    edge_segmentation: {in_channels: 256, out_channels: 2}
+    tte_segmentation: {in_channels: 256, out_channels: 2}
+    tg_segmentation: {in_channels: 256, out_channels: 2}
+
+  stn_transform: {input_channels: 6, layers: [64, 128, 1024]}
+  feature_attention: {in_channels: 1024, activation: "sigmoid"}
+
+
