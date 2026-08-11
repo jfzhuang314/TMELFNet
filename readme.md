@@ -119,3 +119,17 @@ This project references and re-implements code from:
 We appreciate the contributions of the above works.
 ```
 
+
+Please Cite：
+```
+@ARTICLE{11644129,
+  author={Zhuang, Jiafu and Chen, Lanxiang},
+  journal={IEEE Transactions on Medical Imaging}, 
+  title={Topo-Morphological Edge Logits Field for 3D Dental Proposal Generation and Instance Segmentation}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-1},
+  doi={10.1109/TMI.2026.3721080}}
+```
+
