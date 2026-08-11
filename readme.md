@@ -117,12 +117,9 @@ This project references and re-implements code from:
 - etc.
 
 We appreciate the contributions of the above works.
-```
 
 
-Please Cite：
-
-
+If our work is helpful to your research, please kindly cite our paper:
 ```
 @ARTICLE{11644129,
   author={Zhuang, Jiafu and Chen, Lanxiang},
