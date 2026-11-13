@@ -124,11 +124,11 @@ If our work is helpful to your research, please kindly cite our paper:
 @ARTICLE{11644129,
   author={Zhuang, Jiafu and Chen, Lanxiang},
   journal={IEEE Transactions on Medical Imaging}, 
-  title={Topo-Morphological Edge Logits Field for 3D Dental Proposal Generation and Instance Segmentation}, 
+  title={Topo-Morphological Edge Logits Field for 3-D Dental Proposal Generation and Instance Segmentation}, 
   year={2026},
-  volume={},
-  number={},
-  pages={1-1},
+  volume={45},
+  number={11},
+  pages={5392-5403},
   doi={10.1109/TMI.2026.3721080}}
 ```
 
